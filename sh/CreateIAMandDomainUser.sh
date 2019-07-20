@@ -29,7 +29,7 @@ do
         #exit 98
     fi
     
-    echo '***********************Attach group to createed IAM user***********************' #>> $STDOUT_PATH
+    echo '***********************Attach group to createed IAM user***********************' >> $STDOUT_PATH
     aws iam add-user-to-group --user-name $line --group-name $IAMGROUPNAME #>> $STDOUT_PATH
     if [ $? -ne 0 ]; then
         logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [ERR] Failed to attache group to created user."
