@@ -1,54 +1,76 @@
 #!/bin/sh
 
-IAMGROUPNAME='administrators'
-DOMAINGROUPNAME='develop'
-INITIALPASS='passwd'
+# Read configuration
+. /home/admin/virtualenv/aws/conf/Common.conf
 
-USER_INFO='/home/admin/virtualenv/aws/log/AddUserInfo.conf'
-STDOUT_PATH="/home/admin/virtualenv/aws/log/CreateIAMandDomainUser.log"
-
-# Initiai method
-echo "`date +"%Y/%m/%d %H:%M:%S"` [INF] Start IAM and Domain user creation "
-
-if [ ! -e $USER_INFO ]; then
-    logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [ERR] User configuration file was not found."
-    #exit 99
+# Read AWS and Domain function
+. ${SH_DIR}/Common.sh &&
+. ${SH_DIR}/CommonAWSFunction.sh &&
+. ${SH_DIR}/CommonDomainFunction.sh
+if [ $? -ne 0 ]; then
+    logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [INF] Failed to read initial function."
+    exit 99
 fi
 
-if [ -e $STDOUT_PATH ]; then
-    rm -f $STDOUT_PATH
+# Set Variable
+SH_NAME=`basename $0 .sh`
+SH_LOG_PATH=${LOG_DIR}/${SH_NAME}_`date +"%Y%m%d"`.log
+CREATE_USER_INFO_PATH="${CONF_DIR}/CreatUserInfo.lst"
+USER_PASSWD='John_10228979'
+
+# Main method / initila
+OutputLogMsg "Start creation of iam and domain user" ${SH_LOG_PATH} "info"
+
+if [ ! -e $CREATE_USER_INFO_PATH ]; then
+    OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Failed to read creation user information." ${SH_LOG_PATH} "err"
 fi
 
-while read line;
+# Main method / main
+while read line
 do
-    # Create IAM user
-    echo '***********************Create IAM user***********************' #>> $STDOUT_PATH
-    aws iam create-user --user-name $line >> $STDOUT_PATH
+    # creat iam user
+    CheckIAMUser ${line}
     if [ $? -ne 0 ]; then
-        logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [ERR] Failed to IAM user."
-        #exit 98
+        OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` IAM user already exists." ${SH_LOG_PATH} "info"
+
+    else
+        CreateIAMUser ${line} $SH_LOG_PATH ${USER_PASSWD}
+        if [ $? -ne 0 ]; then
+            OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Failed to create iam user." ${SH_LOG_PATH} "err"
+            exit 99
+        fi
+
+        AttachIAMGroup ${line} ${IAM_ADMINISTRATOR_GROUP} $SH_LOG_PATH
+        if [ $? -ne 0 ]; then
+            OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Failed to attach group to created iam user." ${SH_LOG_PATH} "err"
+            exit 99
+        fi
+
+        OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$line] IAM user creation successful." ${SH_LOG_PATH} "info"
     fi
-    
-    echo '***********************Attach group to createed IAM user***********************' >> $STDOUT_PATH
-    aws iam add-user-to-group --user-name $line --group-name $IAMGROUPNAME #>> $STDOUT_PATH
+
+    # create domain user
+    CheckDomainUser ${line}
     if [ $? -ne 0 ]; then
-        logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [ERR] Failed to attache group to created user."
-        #exit 97
+        OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` Domain user already exits." ${SH_LOG_PATH} "info"
+
+    else
+        CreareDomainUser ${line} $SH_LOG_PATH ${USER_PASSWD}
+        if [ $? -ne 0 ]; then
+            OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Failed to create domain user." ${SH_LOG_PATH} "err"
+            exit 99
+        fi
+
+        UserAddGroup ${line} $SH_LOG_PATH ${DOMAIN_DEVELOPER_GROUP}
+        if [ $? -ne 0 ]; then
+            OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Failed to create domain user." ${SH_LOG_PATH} "err"
+            exit 99
+        fi
+
+        OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$line] Domain user creation successful." ${SH_LOG_PATH} "info"
     fi
-    
-    # Create domain user
-    echo '***********************Create domain user***********************' #>> $STDOUT_PATH
-    echo "samba-tool user create $line $INITIALPASS"
-    samba-tool user create $line $INITIALPASS >> $STDOUT_PATH
-    if [ $? -ne 0 ]; then
-        logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [ERR] Failed to create domain user."
-        #exit 96
-    fi
-    
-    echo '***********************Add created user to domain group***********************' #>> $STDOUT_PATH
-    samba-tool group addmembers $DOMAINGROUPNAME $line >> $STDOUT_PATH
-    if [ $? -ne 0 ]; then
-        logger -p err "`date +"%Y/%m/%d %H:%M:%S"` [ERR] Failed to add created user to group for developper."
-        #exit 95
-    fi
-done < $USER_INFO
+
+done < ${CREATE_USER_INFO_PATH}
+
+# Main method / end
+OutputLogMsg "End creation of iam and domain user" ${SH_LOG_PATH} "info"
