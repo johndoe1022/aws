@@ -79,10 +79,13 @@ function GetEC2Infomation() {
 # Delete IAM user
 function DeleteIAMUser() {
     DELETE_IAM_NAME=$1
-    STD_LOG_PATH=$2
+    IAM_GROUP_NAME=$2
+    STD_LOG_PATH=$3
 
     # delete iam user
     echo '********************Delete iam user********************' >> ${STD_LOG_PATH}
+    aws iam delete-login-profile --user-name ${DELETE_IAM_NAME}
+    aws iam remove-user-from-group --user-name ${DELETE_IAM_NAME} --group-name ${IAM_GROUP_NAME} >> ${STD_LOG_PATH}
     aws iam delete-user --user-name ${DELETE_IAM_NAME} >> ${STD_LOG_PATH}
     if [ $? -ne 0 ]; then
         return 99

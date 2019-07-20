@@ -33,7 +33,7 @@ do
         OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` There is no IAM user." ${SH_LOG_PATH} "info"
 
     else
-        DeleteIAMUser ${line} $SH_LOG_PATH
+        DeleteIAMUser ${line} ${IAM_ADMINISTRATOR_GROUP} $SH_LOG_PATH
         if [ $? -ne 0 ]; then
             OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Failed to delete iam user." ${SH_LOG_PATH} "err"
             exit 99
@@ -52,7 +52,7 @@ do
             OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$SH_NAME] Faild to delete domain user." ${SH_LOG_PATH} "err"
             exit 99
         fi
-        OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$line] Domain user creation successful." ${SH_LOG_PATH} "info"
+        OutputLogMsg "`date +"%Y/%m/%d %H:%M:%S"` [$line] Delete domain user successful." ${SH_LOG_PATH} "info"
     fi
 
 done < ${DELETE_USER_INFO_PATH}
